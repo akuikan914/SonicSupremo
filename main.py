@@ -1426,3 +1426,71 @@ def cmd_claim_reward_batch(args: argparse.Namespace) -> int:
             return 1
         print("Batch claim successful. Tx:", tx_hash.hex())
     except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: set-fee (guardian)
+# -----------------------------------------------------------------------------
+
+def cmd_set_fee(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    fee_bps = getattr(args, "fee_bps", None)
+    if fee_bps is None:
+        print("Error: --fee-bps required", file=sys.stderr)
+        return 1
+    try:
+        fee_bps = int(fee_bps)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.setFeeBps(fee_bps).build_transaction({
+            "from": acct.address,
+            "gas": 100000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Fee updated to", fee_bps, "bps. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Interactive
+# -----------------------------------------------------------------------------
+
+def cmd_interactive(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    rpc = cfg.get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = cfg.get("contract", DEFAULT_CONTRACT)
+    print(f"Welcome to {APP_NAME}. Contract: {contract_addr or '(not set)'}")
+    print("Commands: list-pods, dashboard, user-deposits --address 0x..., protocol-stats, pod-info --pod-id N")
+    print("With --private-key: deposit, withdraw, claim-reward, register-pod, pause, unpause, set-fee")
+    return 0
+
+# -----------------------------------------------------------------------------
+# Main parser
+# -----------------------------------------------------------------------------
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog=APP_NAME, description=f"CLI for {CONTRACT_NAME} DeFi savings protocol")
+    parser.add_argument("--rpc-url", help="RPC URL")
+    parser.add_argument("--contract", help="SonicSaver contract address")
+    sub = parser.add_subparsers(dest="command", help="Command")
+
+    # config
