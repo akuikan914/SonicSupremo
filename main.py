@@ -1494,3 +1494,71 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", help="Command")
 
     # config
+    p_config = sub.add_parser("config", help="Show or save config")
+    p_config.add_argument("--save", action="store_true", help="Save current rpc/contract to config")
+    p_config.set_defaults(func=cmd_config)
+
+    # deposit
+    p_dep = sub.add_parser("deposit", help="Deposit ETH into a pod")
+    p_dep.add_argument("--private-key", required=True)
+    p_dep.add_argument("--pod-id", required=True)
+    p_dep.add_argument("--amount-wei", required=True)
+    p_dep.set_defaults(func=cmd_deposit)
+
+    # withdraw
+    p_wd = sub.add_parser("withdraw", help="Withdraw one deposit (after unlock)")
+    p_wd.add_argument("--private-key", required=True)
+    p_wd.add_argument("--pod-id", required=True)
+    p_wd.add_argument("--deposit-index", required=True)
+    p_wd.set_defaults(func=cmd_withdraw)
+
+    # claim-reward
+    p_claim = sub.add_parser("claim-reward", help="Claim reward for one deposit")
+    p_claim.add_argument("--private-key", required=True)
+    p_claim.add_argument("--pod-id", required=True)
+    p_claim.add_argument("--deposit-index", required=True)
+    p_claim.set_defaults(func=cmd_claim_reward)
+
+    # withdraw-batch
+    p_wb = sub.add_parser("withdraw-batch", help="Withdraw multiple deposits in one tx")
+    p_wb.add_argument("--private-key", required=True)
+    p_wb.add_argument("--pod-id", required=True)
+    p_wb.add_argument("--indices", required=True, help="Comma-separated deposit indices")
+    p_wb.set_defaults(func=cmd_withdraw_batch)
+
+    # claim-reward-batch
+    p_crb = sub.add_parser("claim-reward-batch", help="Claim rewards for multiple deposits")
+    p_crb.add_argument("--private-key", required=True)
+    p_crb.add_argument("--pod-id", required=True)
+    p_crb.add_argument("--indices", required=True, help="Comma-separated deposit indices")
+    p_crb.set_defaults(func=cmd_claim_reward_batch)
+
+    # list-pods
+    p_pods = sub.add_parser("list-pods", help="List all pods")
+    p_pods.set_defaults(func=cmd_list_pods)
+
+    # user-deposits
+    p_ud = sub.add_parser("user-deposits", help="List deposits for an address")
+    p_ud.add_argument("--address", required=True)
+    p_ud.add_argument("--pod-id", help="Limit to one pod")
+    p_ud.set_defaults(func=cmd_user_deposits)
+
+    # protocol-stats
+    p_ps = sub.add_parser("protocol-stats", help="Protocol statistics")
+    p_ps.set_defaults(func=cmd_protocol_stats)
+
+    # dashboard
+    p_dash = sub.add_parser("dashboard", help="Dashboard snapshot")
+    p_dash.set_defaults(func=cmd_dashboard)
+
+    # register-pod
+    p_rp = sub.add_parser("register-pod", help="[Guardian] Register a new pod")
+    p_rp.add_argument("--private-key", required=True)
+    p_rp.add_argument("--lock-seconds", required=True)
+    p_rp.add_argument("--rate-bps", required=True)
+    p_rp.add_argument("--cap-wei", required=True)
+    p_rp.set_defaults(func=cmd_register_pod)
+
+    # pause / unpause
+    p_pause = sub.add_parser("pause", help="[Guardian] Pause protocol")
+    p_pause.add_argument("--private-key", required=True)
