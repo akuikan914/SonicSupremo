@@ -406,3 +406,71 @@ def fetch_protocol_snapshot(contract) -> dict:
             "reserved": dash[4],
             "contract_balance": dash[5],
             "pod_count": dash[6],
+            "is_paused": dash[7],
+        },
+        "health": {"balance_ok": health[0], "balance_wei": health[1], "reserved_wei": health[2]},
+        "next_pod_id": next_id,
+        "pods": pods,
+    }
+
+def cmd_protocol_snapshot(args: argparse.Namespace) -> int:
+    """Print or export full protocol snapshot as JSON."""
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    out_path = getattr(args, "output", None)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        snap = fetch_protocol_snapshot(contract)
+        if out_path:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(snap, f, indent=2)
+            print("Snapshot written to", out_path)
+        else:
+            print(json.dumps(snap, indent=2))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Utility: parse unlock timestamp for display
+# -----------------------------------------------------------------------------
+
+def format_unlock_time(unix_ts: int) -> str:
+    if unix_ts <= 0:
+        return "—"
+    try:
+        from datetime import datetime
+        return datetime.utcfromtimestamp(unix_ts).isoformat() + "Z"
+    except Exception:
+        return str(unix_ts)
+
+def format_unlock_relative(unix_ts: int, now_ts: Optional[int] = None) -> str:
+    if unix_ts <= 0:
+        return "—"
+    if now_ts is None:
+        now_ts = int(__import__("time").time())
+    delta = unix_ts - now_ts
+    if delta <= 0:
+        return "unlocked"
+    return "in " + format_seconds_long(delta)
+
+# SonicSupremo targets SonicSaver contract; ensure contract address is set (config or --contract).
+# For mainnet deployment use a verified RPC and the deployed SonicSaver address.
+# Commands that modify state (deposit, withdraw, register-pod, pause, etc.) require --private-key.
+# View-only commands (list-pods, dashboard, user-deposits, etc.) do not require a key.
+# Use "python sonic_supremo_app.py demo" for usage examples and "help-all" for command list.
+# Amounts are in wei unless stated; 1 ETH = 10^18 wei.
+
+# -----------------------------------------------------------------------------
+# Table / grid formatting helpers
+# -----------------------------------------------------------------------------
+
+def table_row(*cells: str, widths: Optional[List[int]] = None) -> str:
+    if not widths:
+        return "  ".join(cells)
+    parts = []
