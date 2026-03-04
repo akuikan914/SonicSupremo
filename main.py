@@ -678,3 +678,71 @@ def wei_to_ether(wei: int) -> float:
 def ether_to_wei(eth: float) -> int:
     return int(eth * 1e18)
 
+def format_wei(wei: int) -> str:
+    return f"{wei_to_ether(wei):.6f} ETH"
+
+def format_bps(bps: int) -> str:
+    return f"{bps / 100:.2f}%"
+
+def format_seconds(s: int) -> str:
+    if s >= 86400 * 365:
+        return f"{s // (86400 * 365)}y"
+    if s >= 86400 * 30:
+        return f"{s // (86400 * 30)}d"
+    if s >= 86400:
+        return f"{s // 86400}d"
+    if s >= 3600:
+        return f"{s // 3600}h"
+    return f"{s}s"
+
+# -----------------------------------------------------------------------------
+# Validation
+# -----------------------------------------------------------------------------
+
+def parse_wei(s: str) -> int:
+    s = s.strip()
+    if s.startswith("0x"):
+        return int(s, 16)
+    return int(s)
+
+def validate_address(s: str) -> str:
+    s = s.strip()
+    if not s.startswith("0x"):
+        s = "0x" + s
+    if len(s) != 42:
+        raise ValueError("Address must be 40 hex chars after 0x")
+    return normalize_address(s)
+
+def validate_pod_id(n: int) -> None:
+    if n < 1:
+        raise ValueError("pod_id must be >= 1")
+
+# -----------------------------------------------------------------------------
+# Commands: config
+# -----------------------------------------------------------------------------
+
+def cmd_config(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    rpc = getattr(args, "rpc_url", None) or cfg.get("rpc_url", DEFAULT_RPC_URL)
+    contract = getattr(args, "contract", None) or cfg.get("contract", DEFAULT_CONTRACT)
+    print("RPC URL:", rpc)
+    print("Contract:", contract or "(not set)")
+    if getattr(args, "save", False):
+        save_config(rpc, contract)
+        print("Saved to", config_path())
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: deposit
+# -----------------------------------------------------------------------------
+
+def cmd_deposit(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
