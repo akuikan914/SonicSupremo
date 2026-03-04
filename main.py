@@ -1698,3 +1698,71 @@ def format_seconds_long(seconds: int) -> str:
     if seconds >= 86400 * 365:
         y = seconds // (86400 * 365)
         d = (seconds % (86400 * 365)) // 86400
+        return f"{y} year(s) {d} day(s)"
+    if seconds >= 86400 * 30:
+        m = seconds // (86400 * 30)
+        return f"{m} month(s)"
+    if seconds >= 86400:
+        return f"{seconds // 86400} day(s)"
+    if seconds >= 3600:
+        return f"{seconds // 3600} hour(s)"
+    return f"{seconds} second(s)"
+
+def format_principal_reward(principal_wei: int, reward_wei: int) -> str:
+    return f"principal={format_wei(principal_wei)}  reward={format_wei(reward_wei)}"
+
+def format_pod_line_short(pod_id: int, lock_sec: int, rate_bps: int, cap_wei: int, deposited_wei: int, active: bool) -> str:
+    rem = cap_wei - deposited_wei if deposited_wei < cap_wei else 0
+    act = "active" if active else "inactive"
+    return f"Pod #{pod_id}  lock={format_seconds(lock_sec)}  rate={format_bps(rate_bps)}  cap={format_wei(cap_wei)}  deposited={format_wei(deposited_wei)}  remaining={format_wei(rem)}  [{act}]"
+
+def estimate_gas_deposit(w3, contract, from_addr: str, pod_id: int, amount_wei: int) -> int:
+    try:
+        tx = contract.functions.deposit(pod_id, amount_wei).build_transaction({
+            "from": from_addr,
+            "value": amount_wei,
+            "gas": 250000,
+        })
+        return w3.eth.estimate_gas(tx)
+    except Exception:
+        return 0
+
+def estimate_gas_withdraw(w3, contract, from_addr: str, pod_id: int, deposit_index: int) -> int:
+    try:
+        tx = contract.functions.withdraw(pod_id, deposit_index).build_transaction({
+            "from": from_addr,
+            "gas": 200000,
+        })
+        return w3.eth.estimate_gas(tx)
+    except Exception:
+        return 0
+
+def estimate_gas_claim_reward(w3, contract, from_addr: str, pod_id: int, deposit_index: int) -> int:
+    try:
+        tx = contract.functions.claimReward(pod_id, deposit_index).build_transaction({
+            "from": from_addr,
+            "gas": 150000,
+        })
+        return w3.eth.estimate_gas(tx)
+    except Exception:
+        return 0
+
+# -----------------------------------------------------------------------------
+# Command: gas-estimate
+# -----------------------------------------------------------------------------
+
+def cmd_gas_estimate(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    action = getattr(args, "action", None)
+    if not contract_addr or not action:
+        print("Error: --contract and --action (deposit|withdraw|claim-reward) required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
