@@ -1630,3 +1630,71 @@ def main() -> int:
     p_const.set_defaults(func=cmd_constants)
     sub.add_parser("interactive", help="Interactive hints").set_defaults(func=cmd_interactive)
     sub.add_parser("demo", help="Print usage examples").set_defaults(func=cmd_demo)
+    p_gas = sub.add_parser("gas-estimate", help="Estimate gas for deposit/withdraw/claim-reward")
+    p_gas.add_argument("--private-key", required=True)
+    p_gas.add_argument("--action", required=True, choices=["deposit", "withdraw", "claim-reward"])
+    p_gas.add_argument("--pod-id", default="1")
+    p_gas.add_argument("--amount-wei", default="0")
+    p_gas.add_argument("--deposit-index", default="0")
+    p_gas.set_defaults(func=cmd_gas_estimate)
+    p_sg = sub.add_parser("set-guardian", help="[Guardian] Set new guardian address")
+    p_sg.add_argument("--private-key", required=True)
+    p_sg.add_argument("--new-guardian", required=True)
+    p_sg.set_defaults(func=cmd_set_guardian)
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        return 0
+    return args.func(args)
+
+# -----------------------------------------------------------------------------
+# Demo and usage examples
+# -----------------------------------------------------------------------------
+
+def cmd_demo(args: argparse.Namespace) -> int:
+    """Print usage examples and exit."""
+    print(f"{APP_NAME} — Usage examples for {CONTRACT_NAME}")
+    print()
+    print("Config:")
+    print("  python sonic_supremo_app.py config --rpc-url https://eth.llamarpc.com --contract 0x... --save")
+    print()
+    print("View (no key):")
+    print("  python sonic_supremo_app.py list-pods")
+    print("  python sonic_supremo_app.py dashboard")
+    print("  python sonic_supremo_app.py protocol-stats")
+    print("  python sonic_supremo_app.py protocol-health")
+    print("  python sonic_supremo_app.py available-pods")
+    print("  python sonic_supremo_app.py pod-info --pod-id 1")
+    print("  python sonic_supremo_app.py user-deposits --address 0x...")
+    print("  python sonic_supremo_app.py user-global-stats --address 0x...")
+    print("  python sonic_supremo_app.py withdrawable --address 0x...")
+    print("  python sonic_supremo_app.py quote --amount-wei 1000000000000000000")
+    print("  python sonic_supremo_app.py simulate --pod-id 1 --amount-wei 1000000000000000000")
+    print("  python sonic_supremo_app.py validate-deposit --pod-id 1 --amount-wei 1000000000000000000")
+    print("  python sonic_supremo_app.py constants")
+    print()
+    print("Transactions (require --private-key):")
+    print("  python sonic_supremo_app.py deposit --private-key 0x... --pod-id 1 --amount-wei 1000000000000000000")
+    print("  python sonic_supremo_app.py withdraw --private-key 0x... --pod-id 1 --deposit-index 0")
+    print("  python sonic_supremo_app.py claim-reward --private-key 0x... --pod-id 1 --deposit-index 0")
+    print("  python sonic_supremo_app.py withdraw-batch --private-key 0x... --pod-id 1 --indices 0,1,2")
+    print("  python sonic_supremo_app.py claim-reward-batch --private-key 0x... --pod-id 1 --indices 0,1")
+    print()
+    print("Guardian:")
+    print("  python sonic_supremo_app.py register-pod --private-key 0x... --lock-seconds 2592000 --rate-bps 500 --cap-wei 100000000000000000000")
+    print("  python sonic_supremo_app.py set-fee --private-key 0x... --fee-bps 75")
+    print("  python sonic_supremo_app.py pause --private-key 0x...")
+    print("  python sonic_supremo_app.py unpause --private-key 0x...")
+    print()
+    print("Environment: SONIC_SUPREMO_RPC_URL, SONIC_SUPREMO_CONTRACT")
+    return 0
+
+# -----------------------------------------------------------------------------
+# Extended helpers for reward projection and display
+# -----------------------------------------------------------------------------
+
+def format_seconds_long(seconds: int) -> str:
+    if seconds >= 86400 * 365:
+        y = seconds // (86400 * 365)
+        d = (seconds % (86400 * 365)) // 86400
