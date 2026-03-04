@@ -270,3 +270,71 @@ constants          Show contract constants (BPS_DENOM, MAX_FEE_BPS, lock limits,
 diagnostics        Run many view calls and print results (for support/debug).
 demo               Print usage examples.
 version            Show app version and contract name.
+interactive        Print interactive mode hints.
+"""
+
+def cmd_help_all(args: argparse.Namespace) -> int:
+    print("SonicSupremo commands:")
+    print(COMMAND_HELP_ALL)
+    return 0
+
+# -----------------------------------------------------------------------------
+# Contract events reference (for log parsing / indexers)
+# -----------------------------------------------------------------------------
+
+SONIC_SAVER_EVENTS = [
+    "PodRegistered(podId,lockSeconds,rateBps,capWei)",
+    "DepositPlaced(user,podId,amountWei,unlockAt)",
+    "WithdrawalExecuted(user,podId,principalWei,rewardWei)",
+    "RewardClaimed(user,podId,amountWei)",
+    "FeeHarvested(collector,amountWei)",
+    "GuardianSet(previousGuardian,newGuardian)",
+    "ProtocolPaused(atBlock)",
+    "ProtocolUnpaused(atBlock)",
+    "PodCapUpdated(podId,previousCap,newCapWei)",
+    "RateUpdated(podId,previousRateBps,newRateBps)",
+    "EmergencySweep(tokenOrZero,amountWei)",
+]
+
+def get_contract_events_help() -> str:
+    return "SonicSaver events:\n" + "\n".join("  " + e for e in SONIC_SAVER_EVENTS)
+
+def cmd_events_help(args: argparse.Namespace) -> int:
+    print(get_contract_events_help())
+    return 0
+
+# -----------------------------------------------------------------------------
+# Default pod presets (for quick register-pod examples)
+# -----------------------------------------------------------------------------
+
+POD_PRESETS = {
+    "30d_5pct_100eth": {"lock_seconds": 30 * 86400, "rate_bps": 500, "cap_wei": 100 * 10**18},
+    "90d_7pct_500eth": {"lock_seconds": 90 * 86400, "rate_bps": 700, "cap_wei": 500 * 10**18},
+    "180d_10pct_1000eth": {"lock_seconds": 180 * 86400, "rate_bps": 1000, "cap_wei": 1000 * 10**18},
+    "365d_12pct_2000eth": {"lock_seconds": 365 * 86400, "rate_bps": 1200, "cap_wei": 2000 * 10**18},
+}
+
+def get_preset(name: str) -> Optional[dict]:
+    return POD_PRESETS.get(name)
+
+def cmd_presets(args: argparse.Namespace) -> int:
+    print("Pod presets (for register-pod):")
+    for name, p in POD_PRESETS.items():
+        print(f"  {name}: lock={format_seconds(p['lock_seconds'])}  rate={format_bps(p['rate_bps'])}  cap={format_wei(p['cap_wei'])}")
+    return 0
+
+# -----------------------------------------------------------------------------
+# Chain ID helper (for signing)
+# -----------------------------------------------------------------------------
+
+def get_chain_id(w3) -> int:
+    try:
+        return w3.eth.chain_id
+    except Exception:
+        return 0
+
+def cmd_chain_id(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    try:
+        w3 = get_w3(rpc)
+        cid = get_chain_id(w3)
