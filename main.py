@@ -1086,3 +1086,71 @@ def cmd_unpause(args: argparse.Namespace) -> int:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Protocol unpaused. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: quote
+# -----------------------------------------------------------------------------
+
+def cmd_quote(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    amount_wei = getattr(args, "amount_wei", None)
+    if not contract_addr or amount_wei is None:
+        print("Error: --contract and --amount-wei required", file=sys.stderr)
+        return 1
+    try:
+        amount_wei = parse_wei(str(amount_wei))
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        fee_wei, net_wei = contract.functions.quoteDeposit(amount_wei).call()
+        print(f"For {format_wei(amount_wei)}: fee={format_wei(fee_wei)}, net principal={format_wei(net_wei)}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: simulate
+# -----------------------------------------------------------------------------
+
+def cmd_simulate(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    pod_id = getattr(args, "pod_id", None)
+    amount_wei = getattr(args, "amount_wei", None)
+    if not contract_addr or pod_id is None or amount_wei is None:
+        print("Error: --contract, --pod-id, --amount-wei required", file=sys.stderr)
+        return 1
+    try:
+        pod_id = int(pod_id)
+        amount_wei = parse_wei(str(amount_wei))
+        validate_pod_id(pod_id)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        net_wei, unlock_at, projected_reward = contract.functions.simulateDeposit(pod_id, amount_wei).call()
+        from datetime import datetime
+        unlock_str = datetime.utcfromtimestamp(unlock_at).isoformat() + "Z" if unlock_at else "—"
+        print(f"Simulation for pod #{pod_id}, amount {format_wei(amount_wei)}:")
+        print(f"  Net principal:    {format_wei(net_wei)}")
+        print(f"  Unlock at:        {unlock_str}")
+        print(f"  Projected reward: {format_wei(projected_reward)}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: version, constants
+# -----------------------------------------------------------------------------
+
+def cmd_version(args: argparse.Namespace) -> int:
+    print(f"{APP_NAME} v{APP_VERSION} — client for {CONTRACT_NAME}")
+    return 0
+
