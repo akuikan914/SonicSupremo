@@ -66,3 +66,71 @@ SONIC_SAVER_ABI = [
     {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}], "name": "getUserDepositCount", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}, {"internalType": "uint256", "name": "index", "type": "uint256"}], "name": "getUserDeposit", "outputs": [{"internalType": "uint256", "name": "principalWei", "type": "uint256"}, {"internalType": "uint256", "name": "unlockAt", "type": "uint256"}, {"internalType": "uint256", "name": "accruedRewardAtLock", "type": "uint256"}, {"internalType": "uint256", "name": "rateBpsAtDeposit", "type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}, {"internalType": "uint256", "name": "depositIndex", "type": "uint256"}], "name": "getRewardForDeposit", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "getNextPodId", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "getDashboardSnapshot", "outputs": [{"internalType": "uint256", "name": "totalFees", "type": "uint256"}, {"internalType": "uint256", "name": "totalDeposited", "type": "uint256"}, {"internalType": "uint256", "name": "totalWithdrawn", "type": "uint256"}, {"internalType": "uint256", "name": "totalRewardsPaid", "type": "uint256"}, {"internalType": "uint256", "name": "reserved", "type": "uint256"}, {"internalType": "uint256", "name": "contractBalance", "type": "uint256"}, {"internalType": "uint256", "name": "podCount", "type": "uint256"}, {"internalType": "bool", "name": "isPaused", "type": "bool"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "amountWei", "type": "uint256"}], "name": "quoteDeposit", "outputs": [{"internalType": "uint256", "name": "feeWei", "type": "uint256"}, {"internalType": "uint256", "name": "netWei", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "uint256", "name": "amountWei", "type": "uint256"}], "name": "simulateDeposit", "outputs": [{"internalType": "uint256", "name": "netWei", "type": "uint256"}, {"internalType": "uint256", "name": "unlockAt", "type": "uint256"}, {"internalType": "uint256", "name": "projectedRewardWei", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "fromId", "type": "uint256"}, {"internalType": "uint256", "name": "count", "type": "uint256"}], "name": "getPodsBatch", "outputs": [{"internalType": "uint256[]", "name": "ids", "type": "uint256[]"}, {"internalType": "uint256[]", "name": "lockSecondsArr", "type": "uint256[]"}, {"internalType": "uint256[]", "name": "rateBpsArr", "type": "uint256[]"}, {"internalType": "uint256[]", "name": "capWeiArr", "type": "uint256[]"}, {"internalType": "uint256[]", "name": "totalDepositedArr", "type": "uint256[]"}, {"internalType": "bool[]", "name": "activeArr", "type": "bool[]"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "address", "name": "user", "type": "address"}], "name": "getPodsWhereUserHasDeposits", "outputs": [{"internalType": "uint256[]", "name": "podIds", "type": "uint256[]"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}], "name": "getDepositSummaryForUser", "outputs": [{"internalType": "uint256", "name": "totalPrincipal", "type": "uint256"}, {"internalType": "uint256", "name": "totalClaimableReward", "type": "uint256"}, {"internalType": "uint256", "name": "depositCount", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "protocolPaused", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "feeBps", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "BPS_DENOM", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "MAX_FEE_BPS", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "MIN_LOCK_SECONDS", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "MAX_LOCK_SECONDS", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "SECONDS_PER_YEAR", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}], "name": "getCapacityRemaining", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}], "name": "getDepositIndicesUnlocked", "outputs": [{"internalType": "uint256[]", "name": "indices", "type": "uint256[]"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "address", "name": "user", "type": "address"}], "name": "getTotalWithdrawableForUserInPod", "outputs": [{"internalType": "uint256", "name": "totalPrincipal", "type": "uint256"}, {"internalType": "uint256", "name": "totalReward", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "getProtocolHealth", "outputs": [{"internalType": "bool", "name": "balanceOk", "type": "bool"}, {"internalType": "uint256", "name": "balanceWei", "type": "uint256"}, {"internalType": "uint256", "name": "reservedWei", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "uint256", "name": "podId", "type": "uint256"}, {"internalType": "uint256", "name": "amountWei", "type": "uint256"}], "name": "validateDepositParams", "outputs": [{"internalType": "bool", "name": "valid", "type": "bool"}, {"internalType": "string", "name": "err", "type": "string"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [], "name": "getAvailablePodIds", "outputs": [{"internalType": "uint256[]", "name": "ids", "type": "uint256[]"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "address", "name": "user", "type": "address"}], "name": "getUserGlobalPrincipal", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+    {"inputs": [{"internalType": "address", "name": "user", "type": "address"}], "name": "getUserGlobalClaimableReward", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+]
+
+# -----------------------------------------------------------------------------
+# Local reward calculation (mirrors contract formula)
+# -----------------------------------------------------------------------------
+
+BPS_DENOM_LOCAL = 10_000
+SECONDS_PER_YEAR_LOCAL = 365 * 24 * 3600
+
+def compute_reward_wei(principal_wei: int, rate_bps: int, elapsed_seconds: int, accrued_wei: int = 0) -> int:
+    """Reward = principal * rateBps * elapsed / (BPS_DENOM * SECONDS_PER_YEAR) - accrued."""
+    if principal_wei == 0 or elapsed_seconds <= 0:
+        return 0
+    full = (principal_wei * rate_bps * elapsed_seconds) // (BPS_DENOM_LOCAL * SECONDS_PER_YEAR_LOCAL)
+    if full <= accrued_wei:
+        return 0
+    return full - accrued_wei
+
+def compute_fee_wei(amount_wei: int, fee_bps: int) -> int:
+    return (amount_wei * fee_bps) // BPS_DENOM_LOCAL
+
+def compute_net_after_fee(amount_wei: int, fee_bps: int) -> int:
+    return amount_wei - compute_fee_wei(amount_wei, fee_bps)
+
+def project_reward_at_unlock(principal_wei: int, rate_bps: int, lock_seconds: int) -> int:
+    """Projected reward if principal is locked for lock_seconds at rate_bps (full period)."""
+    return (principal_wei * rate_bps * lock_seconds) // (BPS_DENOM_LOCAL * SECONDS_PER_YEAR_LOCAL)
+
+def local_quote_deposit(amount_wei: int, fee_bps: int) -> Tuple[int, int]:
+    """Local quote: (fee_wei, net_wei) for a deposit. Matches contract quoteDeposit."""
+    fee = compute_fee_wei(amount_wei, fee_bps)
+    return (fee, amount_wei - fee)
+
+def local_simulate_deposit(amount_wei: int, fee_bps: int, lock_seconds: int, rate_bps: int) -> Tuple[int, int, int]:
+    """Local simulation: (net_wei, projected_reward_wei). unlock_at not computed (needs block.timestamp)."""
+    net = compute_net_after_fee(amount_wei, fee_bps)
+    proj = project_reward_at_unlock(net, rate_bps, lock_seconds)
+    return (net, proj, 0)
+
+def check_capacity(contract, pod_id: int, amount_wei: int) -> bool:
+    """Return True if pod has at least amount_wei capacity remaining."""
+    try:
+        rem = contract.functions.getCapacityRemaining(pod_id).call()
+        return rem >= amount_wei
+    except Exception:
+        return False
