@@ -1222,3 +1222,71 @@ def cmd_available_pods(args: argparse.Namespace) -> int:
             print("No pods with capacity remaining.")
             return 0
         print("Pods with capacity remaining:", ids)
+        for pid in ids:
+            cap_rem = contract.functions.getCapacityRemaining(pid).call()
+            lock_sec, rate_bps, cap_wei, total_dep, active, _, _ = contract.functions.getPodInfo(pid).call()
+            print(f"  Pod #{pid}: remaining={format_wei(cap_rem)}  lock={format_seconds(lock_sec)}  rate={format_bps(rate_bps)}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: validate-deposit
+# -----------------------------------------------------------------------------
+
+def cmd_validate_deposit(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    pod_id = getattr(args, "pod_id", None)
+    amount_wei = getattr(args, "amount_wei", None)
+    if not contract_addr or pod_id is None or amount_wei is None:
+        print("Error: --contract, --pod-id, --amount-wei required", file=sys.stderr)
+        return 1
+    try:
+        pod_id = int(pod_id)
+        amount_wei = parse_wei(str(amount_wei))
+        validate_pod_id(pod_id)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        valid, err = contract.functions.validateDepositParams(pod_id, amount_wei).call()
+        if valid:
+            print("Valid: deposit would succeed (subject to sender balance).")
+        else:
+            print("Invalid:", err)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: user-global-stats
+# -----------------------------------------------------------------------------
+
+def cmd_user_global_stats(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    if not contract_addr or not address:
+        print("Error: --contract and --address required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        total_principal = contract.functions.getUserGlobalPrincipal(address).call()
+        total_claimable = contract.functions.getUserGlobalClaimableReward(address).call()
+        pod_ids = contract.functions.getPodsWhereUserHasDeposits(address).call()
+        print(f"User {address}:")
+        print(f"  Total principal (all pods):  {format_wei(total_principal)}")
+        print(f"  Total claimable reward:     {format_wei(total_claimable)}")
+        print(f"  Pods with deposits:         {pod_ids}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: withdrawable (list withdrawable positions)
+# -----------------------------------------------------------------------------
+
