@@ -1154,3 +1154,71 @@ def cmd_version(args: argparse.Namespace) -> int:
     print(f"{APP_NAME} v{APP_VERSION} — client for {CONTRACT_NAME}")
     return 0
 
+def cmd_constants(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        bps = contract.functions.BPS_DENOM().call()
+        max_fee = contract.functions.MAX_FEE_BPS().call()
+        min_lock = contract.functions.MIN_LOCK_SECONDS().call()
+        max_lock = contract.functions.MAX_LOCK_SECONDS().call()
+        sec_per_year = contract.functions.SECONDS_PER_YEAR().call()
+        fee_bps = contract.functions.feeBps().call()
+        print("Constants:")
+        print(f"  BPS_DENOM:        {bps}")
+        print(f"  MAX_FEE_BPS:      {max_fee}")
+        print(f"  MIN_LOCK_SECONDS: {min_lock} ({format_seconds(min_lock)})")
+        print(f"  MAX_LOCK_SECONDS: {max_lock} ({format_seconds(max_lock)})")
+        print(f"  SECONDS_PER_YEAR: {sec_per_year}")
+        print(f"  Current feeBps:   {fee_bps}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: protocol-health
+# -----------------------------------------------------------------------------
+
+def cmd_protocol_health(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        balance_ok, balance_wei, reserved_wei = contract.functions.getProtocolHealth().call()
+        print("Protocol health:")
+        print(f"  Balance:   {format_wei(balance_wei)}")
+        print(f"  Reserved: {format_wei(reserved_wei)}")
+        print(f"  OK:       {balance_ok} (balance >= reserved)")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: available-pods
+# -----------------------------------------------------------------------------
+
+def cmd_available_pods(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        ids = contract.functions.getAvailablePodIds().call()
+        if not ids:
+            print("No pods with capacity remaining.")
+            return 0
+        print("Pods with capacity remaining:", ids)
