@@ -134,3 +134,71 @@ def check_capacity(contract, pod_id: int, amount_wei: int) -> bool:
         return rem >= amount_wei
     except Exception:
         return False
+
+def get_user_pod_ids(contract, user_address: str) -> List[int]:
+    """Return list of pod ids where user has at least one deposit."""
+    try:
+        return list(contract.functions.getPodsWhereUserHasDeposits(user_address).call())
+    except Exception:
+        return []
+
+def build_user_report_dict(contract, user_address: str) -> dict:
+    """Build a dict with user's total principal, claimable reward, and per-pod breakdown."""
+    pod_ids = get_user_pod_ids(contract, user_address)
+    total_principal = 0
+    total_claimable = 0
+    pods = []
+    for pid in pod_ids:
+        princ, claimable, count = contract.functions.getDepositSummaryForUser(pid, user_address).call()
+        total_principal += princ
+        total_claimable += claimable
+        pods.append({"pod_id": pid, "principal_wei": princ, "claimable_reward_wei": claimable, "deposit_count": count})
+    return {
+        "address": user_address,
+        "total_principal_wei": total_principal,
+        "total_claimable_reward_wei": total_claimable,
+        "pods": pods,
+    }
+
+def format_user_report(report: dict) -> str:
+    """Format build_user_report_dict output as multiline string."""
+    lines = [
+        f"Address: {report['address']}",
+        f"Total principal: {format_wei(report['total_principal_wei'])}",
+        f"Total claimable reward: {format_wei(report['total_claimable_reward_wei'])}",
+        "Per-pod:",
+    ]
+    for p in report["pods"]:
+        lines.append(f"  Pod #{p['pod_id']}: principal={format_wei(p['principal_wei'])}  claimable={format_wei(p['claimable_reward_wei'])}  deposits={p['deposit_count']}")
+    return "\n".join(lines)
+
+# -----------------------------------------------------------------------------
+# Extended validation and eligibility helpers
+# -----------------------------------------------------------------------------
+
+def validate_pod_id_range(pod_id: int, next_pod_id: int) -> bool:
+    """Return True if pod_id is in valid range [1, next_pod_id - 1]."""
+    return 1 <= pod_id < next_pod_id
+
+def validate_amount_positive(amount_wei: int) -> bool:
+    return amount_wei > 0
+
+def validate_fee_bps(fee_bps: int, max_fee_bps: int = 500) -> bool:
+    return 0 <= fee_bps <= max_fee_bps
+
+def validate_lock_seconds(lock_seconds: int, min_sec: int = 7 * 86400, max_sec: int = 730 * 86400) -> bool:
+    return min_sec <= lock_seconds <= max_sec
+
+def validate_rate_bps(rate_bps: int, max_rate_bps: int = 2000) -> bool:
+    return 0 <= rate_bps <= max_rate_bps
+
+def eligibility_deposit(contract, pod_id: int, amount_wei: int) -> Tuple[bool, str]:
+    """Check if a deposit would be accepted. Returns (ok, message)."""
+    try:
+        valid, err = contract.functions.validateDepositParams(pod_id, amount_wei).call()
+        if valid:
+            return (True, "OK")
+        return (False, err or "Unknown")
+    except Exception as e:
+        return (False, str(e))
+
