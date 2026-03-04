@@ -1766,3 +1766,65 @@ def cmd_gas_estimate(args: argparse.Namespace) -> int:
         w3 = get_w3(rpc)
         acct = get_signer_account(w3, pk)
         contract = get_contract(w3, contract_addr)
+        if action == "deposit":
+            pod_id = int(getattr(args, "pod_id", 0))
+            amount_wei = parse_wei(str(getattr(args, "amount_wei", "0")))
+            gas = estimate_gas_deposit(w3, contract, acct.address, pod_id, amount_wei)
+            print("Estimated gas (deposit):", gas)
+        elif action == "withdraw":
+            pod_id = int(getattr(args, "pod_id", 0))
+            dep_idx = int(getattr(args, "deposit_index", 0))
+            gas = estimate_gas_withdraw(w3, contract, acct.address, pod_id, dep_idx)
+            print("Estimated gas (withdraw):", gas)
+        elif action == "claim-reward":
+            pod_id = int(getattr(args, "pod_id", 0))
+            dep_idx = int(getattr(args, "deposit_index", 0))
+            gas = estimate_gas_claim_reward(w3, contract, acct.address, pod_id, dep_idx)
+            print("Estimated gas (claim-reward):", gas)
+        else:
+            print("Unknown action. Use deposit, withdraw, or claim-reward.", file=sys.stderr)
+            return 1
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Command: set-guardian (guardian only)
+# -----------------------------------------------------------------------------
+
+def cmd_set_guardian(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    new_guardian = getattr(args, "new_guardian", None)
+    if not pk or not new_guardian:
+        print("Error: --private-key and --new-guardian required", file=sys.stderr)
+        return 1
+    try:
+        new_guardian = validate_address(new_guardian)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.setGuardian(new_guardian).build_transaction({
+            "from": acct.address,
+            "gas": 100000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Guardian updated. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
