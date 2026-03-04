@@ -202,3 +202,71 @@ def eligibility_deposit(contract, pod_id: int, amount_wei: int) -> Tuple[bool, s
     except Exception as e:
         return (False, str(e))
 
+def print_eligibility(contract, pod_id: int, amount_wei: int) -> None:
+    """Print eligibility result for a deposit."""
+    ok, msg = eligibility_deposit(contract, pod_id, amount_wei)
+    if ok:
+        print("Eligible: deposit would succeed (subject to sender balance and gas).")
+    else:
+        print("Not eligible:", msg)
+
+# -----------------------------------------------------------------------------
+# Command: check-eligibility
+# -----------------------------------------------------------------------------
+
+def cmd_check_eligibility(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    pod_id = getattr(args, "pod_id", None)
+    amount_wei = getattr(args, "amount_wei", None)
+    if not contract_addr or pod_id is None or amount_wei is None:
+        print("Error: --contract, --pod-id, --amount-wei required", file=sys.stderr)
+        return 1
+    try:
+        pod_id = int(pod_id)
+        amount_wei = parse_wei(str(amount_wei))
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        print_eligibility(contract, pod_id, amount_wei)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Help-all: print all commands with one-line descriptions
+# -----------------------------------------------------------------------------
+
+COMMAND_HELP_ALL = """
+config             Show or save RPC URL and contract address.
+deposit            Deposit ETH into a pod (payable).
+withdraw           Withdraw one deposit after unlock (principal + reward).
+claim-reward       Claim reward for one unlocked deposit.
+withdraw-batch     Withdraw multiple deposits in one transaction.
+claim-reward-batch Claim rewards for multiple deposits.
+list-pods          List all registered pods with lock, rate, cap, deposited.
+user-deposits      List deposits for an address (optionally filter by pod).
+user-global-stats  Total principal and claimable reward across all pods for an address.
+user-report        Structured report for one address (principal, claimable, per-pod).
+export-report      Export user report as JSON to a file.
+protocol-stats     Protocol-level totals (fees, deposited, withdrawn, rewards, reserved).
+protocol-health    Contract balance vs reserved (health check).
+dashboard          Single-call snapshot: fees, deposited, withdrawn, reserved, balance, pods, paused.
+summary            Dashboard + health + pods in one output.
+available-pods     Pod IDs that are active and have capacity remaining.
+pod-info           Detailed info for one pod (lock, rate, cap, deposited, active, created block).
+validate-deposit   Check if deposit(podId, amountWei) would succeed.
+check-eligibility  Alias-style check for deposit eligibility.
+withdrawable       List withdrawable (unlocked) positions for an address.
+register-pod       [Guardian] Register a new pod (lock seconds, rate bps, cap wei).
+set-fee            [Guardian] Set protocol fee in basis points.
+set-guardian       [Guardian] Set new guardian address.
+pause              [Guardian] Pause protocol (no new deposits).
+unpause            [Guardian] Unpause protocol.
+quote              Quote fee and net principal for a deposit amount.
+simulate           Simulate deposit: net principal, unlock time, projected reward.
+gas-estimate       Estimate gas for deposit, withdraw, or claim-reward.
+constants          Show contract constants (BPS_DENOM, MAX_FEE_BPS, lock limits, feeBps).
+diagnostics        Run many view calls and print results (for support/debug).
+demo               Print usage examples.
+version            Show app version and contract name.
