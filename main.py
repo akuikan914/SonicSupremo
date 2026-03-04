@@ -814,3 +814,71 @@ def cmd_withdraw(args: argparse.Namespace) -> int:
             print("Transaction failed", file=sys.stderr)
             return 1
         print("Withdrawal successful. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: claim-reward
+# -----------------------------------------------------------------------------
+
+def cmd_claim_reward(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    pod_id = getattr(args, "pod_id", None)
+    deposit_index = getattr(args, "deposit_index", None)
+    if pod_id is None or deposit_index is None:
+        print("Error: --pod-id and --deposit-index required", file=sys.stderr)
+        return 1
+    try:
+        pod_id = int(pod_id)
+        deposit_index = int(deposit_index)
+        validate_pod_id(pod_id)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.claimReward(pod_id, deposit_index).build_transaction({
+            "from": acct.address,
+            "gas": 150000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Reward claimed. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: list-pods
+# -----------------------------------------------------------------------------
+
+def cmd_list_pods(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        next_id = contract.functions.getNextPodId().call()
+        if next_id == 0:
+            print("No pods registered.")
+            return 0
+        from_id = 1
+        count = next_id - 1
+        ids, lock_arr, rate_arr, cap_arr, dep_arr, active_arr = contract.functions.getPodsBatch(from_id, count).call()
