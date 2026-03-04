@@ -950,3 +950,71 @@ def cmd_protocol_stats(args: argparse.Namespace) -> int:
         print("Protocol stats:")
         print(f"  Total fees harvested:  {format_wei(total_fees)}")
         print(f"  Total deposited:      {format_wei(total_dep)}")
+        print(f"  Total withdrawn:      {format_wei(total_wd)}")
+        print(f"  Total rewards paid:   {format_wei(total_reward)}")
+        print(f"  Reserved (in pods):   {format_wei(reserved)}")
+        print(f"  Pod count:            {pod_count}")
+        print(f"  Paused:               {paused}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: dashboard
+# -----------------------------------------------------------------------------
+
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        total_fees, total_dep, total_wd, total_reward, reserved, balance, pod_count, is_paused = contract.functions.getDashboardSnapshot().call()
+        print("Dashboard:")
+        print(f"  Fees:        {format_wei(total_fees)}")
+        print(f"  Deposited:   {format_wei(total_dep)}")
+        print(f"  Withdrawn:   {format_wei(total_wd)}")
+        print(f"  Rewards:     {format_wei(total_reward)}")
+        print(f"  Reserved:    {format_wei(reserved)}")
+        print(f"  Balance:     {format_wei(balance)}")
+        print(f"  Pods:       {pod_count}")
+        print(f"  Paused:     {is_paused}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: register-pod (guardian)
+# -----------------------------------------------------------------------------
+
+def cmd_register_pod(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    lock_seconds = getattr(args, "lock_seconds", None)
+    rate_bps = getattr(args, "rate_bps", None)
+    cap_wei = getattr(args, "cap_wei", None)
+    if lock_seconds is None or rate_bps is None or cap_wei is None:
+        print("Error: --lock-seconds, --rate-bps, --cap-wei required", file=sys.stderr)
+        return 1
+    try:
+        lock_seconds = int(lock_seconds)
+        rate_bps = int(rate_bps)
+        cap_wei = parse_wei(str(cap_wei))
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.registerPod(lock_seconds, rate_bps, cap_wei).build_transaction({
+            "from": acct.address,
+            "gas": 200000,
