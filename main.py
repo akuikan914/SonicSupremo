@@ -338,3 +338,71 @@ def cmd_chain_id(args: argparse.Namespace) -> int:
     try:
         w3 = get_w3(rpc)
         cid = get_chain_id(w3)
+        print("Chain ID:", cid)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Block number and timestamp (for unlock display)
+# -----------------------------------------------------------------------------
+
+def get_block_timestamp(w3, block_identifier: Any = "latest") -> int:
+    try:
+        block = w3.eth.get_block(block_identifier)
+        return block["timestamp"]
+    except Exception:
+        return 0
+
+def cmd_block_info(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    try:
+        w3 = get_w3(rpc)
+        block = w3.eth.get_block("latest")
+        print("Latest block:", block["number"], "timestamp:", block["timestamp"])
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Full protocol snapshot (for export or audit)
+# -----------------------------------------------------------------------------
+
+def fetch_protocol_snapshot(contract) -> dict:
+    """Fetch all protocol-level view data into a single dict. No user address needed."""
+    stats = contract.functions.getProtocolStats().call()
+    dash = contract.functions.getDashboardSnapshot().call()
+    health = contract.functions.getProtocolHealth().call()
+    next_id = contract.functions.getNextPodId().call()
+    pods = []
+    if next_id > 0:
+        ids, lock_arr, rate_arr, cap_arr, dep_arr, active_arr = contract.functions.getPodsBatch(1, next_id - 1).call()
+        for i in range(len(ids)):
+            pods.append({
+                "pod_id": ids[i],
+                "lock_seconds": lock_arr[i],
+                "rate_bps": rate_arr[i],
+                "cap_wei": cap_arr[i],
+                "total_deposited_wei": dep_arr[i],
+                "active": active_arr[i],
+            })
+    return {
+        "protocol_stats": {
+            "total_fees_wei": stats[0],
+            "total_deposited_wei": stats[1],
+            "total_withdrawn_wei": stats[2],
+            "total_rewards_paid_wei": stats[3],
+            "reserved_wei": stats[4],
+            "pod_count": stats[5],
+            "paused": stats[6],
+        },
+        "dashboard": {
+            "total_fees": dash[0],
+            "total_deposited": dash[1],
+            "total_withdrawn": dash[2],
+            "total_rewards_paid": dash[3],
+            "reserved": dash[4],
+            "contract_balance": dash[5],
+            "pod_count": dash[6],
