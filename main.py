@@ -610,3 +610,71 @@ def cmd_export_report(args: argparse.Namespace) -> int:
         report = build_user_report_dict(contract, address)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
+        print("Report written to", out_path)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Config
+# -----------------------------------------------------------------------------
+
+def config_path() -> Path:
+    return Path.home() / CONFIG_DIR / CONFIG_FILE
+
+def load_config() -> dict:
+    p = config_path()
+    if not p.exists():
+        return {"rpc_url": DEFAULT_RPC_URL, "contract": DEFAULT_CONTRACT}
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"rpc_url": DEFAULT_RPC_URL, "contract": DEFAULT_CONTRACT}
+
+def save_config(rpc_url: str, contract: str) -> None:
+    p = config_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"rpc_url": rpc_url, "contract": contract}, f, indent=2)
+
+# -----------------------------------------------------------------------------
+# Web3
+# -----------------------------------------------------------------------------
+
+def get_w3(rpc_url: str):
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        if not w3.is_connected():
+            raise RuntimeError("Not connected to RPC")
+        return w3
+    except ImportError:
+        raise RuntimeError("Install web3: pip install web3")
+
+def get_contract(w3, address: str):
+    from web3 import Web3
+    return w3.eth.contract(address=Web3.to_checksum_address(address), abi=SONIC_SAVER_ABI)
+
+def get_signer_account(w3, private_key: str):
+    from web3 import Web3
+    pk = private_key.strip()
+    if pk.startswith("0x"):
+        pk = pk[2:]
+    return w3.eth.account.from_key(pk)
+
+def normalize_address(addr: str) -> str:
+    from web3 import Web3
+    return Web3.to_checksum_address(addr)
+
+# -----------------------------------------------------------------------------
+# Formatting
+# -----------------------------------------------------------------------------
+
+def wei_to_ether(wei: int) -> float:
+    return wei / 1e18
+
+def ether_to_wei(eth: float) -> int:
+    return int(eth * 1e18)
+
