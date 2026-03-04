@@ -542,3 +542,71 @@ def cmd_diagnostics(args: argparse.Namespace) -> int:
 # Command: summary (dashboard + list-pods + health in one)
 # -----------------------------------------------------------------------------
 
+def cmd_summary(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        print("--- Dashboard ---")
+        t1, t2, t3, t4, res, bal, pc, pa = contract.functions.getDashboardSnapshot().call()
+        print(f"Fees: {format_wei(t1)}  Deposited: {format_wei(t2)}  Withdrawn: {format_wei(t3)}  Rewards: {format_wei(t4)}")
+        print(f"Reserved: {format_wei(res)}  Contract balance: {format_wei(bal)}  Pods: {pc}  Paused: {pa}")
+        print("--- Health ---")
+        ok, b, r = contract.functions.getProtocolHealth().call()
+        print(f"Balance OK: {ok}  Balance: {format_wei(b)}  Reserved: {format_wei(r)}")
+        next_id = contract.functions.getNextPodId().call()
+        if next_id > 0:
+            print("--- Pods ---")
+            ids, lock_arr, rate_arr, cap_arr, dep_arr, active_arr = contract.functions.getPodsBatch(1, next_id - 1).call()
+            for i in range(len(ids)):
+                print(f"  {format_pod_line_short(ids[i], lock_arr[i], rate_arr[i], cap_arr[i], dep_arr[i], active_arr[i])}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Command: user-report (structured report for one address)
+# -----------------------------------------------------------------------------
+
+def cmd_user_report(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    if not contract_addr or not address:
+        print("Error: --contract and --address required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        report = build_user_report_dict(contract, address)
+        print(format_user_report(report))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Command: export-report (write JSON to file)
+# -----------------------------------------------------------------------------
+
+def cmd_export_report(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    out_path = getattr(args, "output", None)
+    if not contract_addr or not address or not out_path:
+        print("Error: --contract, --address, --output required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        report = build_user_report_dict(contract, address)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
