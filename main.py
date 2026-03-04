@@ -474,3 +474,71 @@ def table_row(*cells: str, widths: Optional[List[int]] = None) -> str:
     if not widths:
         return "  ".join(cells)
     parts = []
+    for i, c in enumerate(cells):
+        w = widths[i] if i < len(widths) else len(c)
+        parts.append(c.ljust(w))
+    return "  ".join(parts)
+
+def pad_eth(wei: int, width: int = 14) -> str:
+    s = format_wei(wei)
+    return s.rjust(width)
+
+def pad_bps(bps: int, width: int = 8) -> str:
+    s = format_bps(bps)
+    return s.rjust(width)
+
+# -----------------------------------------------------------------------------
+# Full diagnostics: fetch and print many contract views (for support/debug)
+# -----------------------------------------------------------------------------
+
+def run_diagnostics(rpc_url: str, contract_addr: str) -> None:
+    """Call multiple view functions and print results. No state change."""
+    w3 = get_w3(rpc_url)
+    contract = get_contract(w3, contract_addr)
+    print("=== Protocol stats ===")
+    total_fees, total_dep, total_wd, total_reward, reserved, pod_count, paused = contract.functions.getProtocolStats().call()
+    print(f"  totalFees={format_wei(total_fees)}  totalDeposited={format_wei(total_dep)}  totalWithdrawn={format_wei(total_wd)}")
+    print(f"  totalRewardPaid={format_wei(total_reward)}  reserved={format_wei(reserved)}  podCount={pod_count}  paused={paused}")
+    print("=== Dashboard snapshot ===")
+    t1, t2, t3, t4, res, bal, pc, pa = contract.functions.getDashboardSnapshot().call()
+    print(f"  fees={format_wei(t1)}  deposited={format_wei(t2)}  withdrawn={format_wei(t3)}  rewards={format_wei(t4)}")
+    print(f"  reserved={format_wei(res)}  balance={format_wei(bal)}  podCount={pc}  paused={pa}")
+    print("=== Protocol health ===")
+    ok, b, r = contract.functions.getProtocolHealth().call()
+    print(f"  balanceOk={ok}  balance={format_wei(b)}  reserved={format_wei(r)}")
+    print("=== Constants ===")
+    bps = contract.functions.BPS_DENOM().call()
+    max_fee = contract.functions.MAX_FEE_BPS().call()
+    min_lock = contract.functions.MIN_LOCK_SECONDS().call()
+    max_lock = contract.functions.MAX_LOCK_SECONDS().call()
+    fee_bps = contract.functions.feeBps().call()
+    print(f"  BPS_DENOM={bps}  MAX_FEE_BPS={max_fee}  MIN_LOCK={min_lock}  MAX_LOCK={max_lock}  feeBps={fee_bps}")
+    next_id = contract.functions.getNextPodId().call()
+    print(f"  nextPodId={next_id}")
+    if next_id > 0:
+        print("=== Pods (batch) ===")
+        ids, lock_arr, rate_arr, cap_arr, dep_arr, active_arr = contract.functions.getPodsBatch(1, next_id - 1).call()
+        for i in range(len(ids)):
+            print(f"  {format_pod_line_short(ids[i], lock_arr[i], rate_arr[i], cap_arr[i], dep_arr[i], active_arr[i])}")
+    print("=== Available pod IDs ===")
+    avail = contract.functions.getAvailablePodIds().call()
+    print(" ", avail)
+    print("=== End diagnostics ===")
+
+def cmd_diagnostics(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        run_diagnostics(rpc, contract_addr)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Command: summary (dashboard + list-pods + health in one)
+# -----------------------------------------------------------------------------
+
