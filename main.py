@@ -1290,3 +1290,71 @@ def cmd_user_global_stats(args: argparse.Namespace) -> int:
 # Commands: withdrawable (list withdrawable positions)
 # -----------------------------------------------------------------------------
 
+def cmd_withdrawable(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    if not contract_addr or not address:
+        print("Error: --contract and --address required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        pod_ids = contract.functions.getPodsWhereUserHasDeposits(address).call()
+        total_principal = 0
+        total_reward = 0
+        for pid in pod_ids:
+            princ, rew = contract.functions.getTotalWithdrawableForUserInPod(pid, address).call()
+            if princ == 0 and rew == 0:
+                continue
+            indices = contract.functions.getDepositIndicesUnlocked(pid, address).call()
+            print(f"Pod #{pid}: principal={format_wei(princ)}, reward={format_wei(rew)}, indices={indices}")
+            total_principal += princ
+            total_reward += rew
+        print(f"Total withdrawable: principal={format_wei(total_principal)}, reward={format_wei(total_reward)}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: pod-info
+# -----------------------------------------------------------------------------
+
+def cmd_pod_info(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    pod_id = getattr(args, "pod_id", None)
+    if not contract_addr or pod_id is None:
+        print("Error: --contract and --pod-id required", file=sys.stderr)
+        return 1
+    try:
+        pod_id = int(pod_id)
+        validate_pod_id(pod_id)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        lock_sec, rate_bps, cap_wei, total_dep, active, created_block, name_hash = contract.functions.getPodInfo(pod_id).call()
+        print(f"Pod #{pod_id}:")
+        print(f"  Lock:       {lock_sec}s ({format_seconds(lock_sec)})")
+        print(f"  Rate:       {rate_bps} bps ({format_bps(rate_bps)})")
+        print(f"  Cap:        {format_wei(cap_wei)}")
+        print(f"  Deposited:  {format_wei(total_dep)}")
+        print(f"  Active:     {active}")
+        print(f"  Created:    block {created_block}")
+        print(f"  Name hash:  {name_hash.hex() if name_hash else '—'}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: withdraw-batch, claim-reward-batch
+# -----------------------------------------------------------------------------
+
+def cmd_withdraw_batch(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
