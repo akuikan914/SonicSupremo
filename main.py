@@ -882,3 +882,71 @@ def cmd_list_pods(args: argparse.Namespace) -> int:
         from_id = 1
         count = next_id - 1
         ids, lock_arr, rate_arr, cap_arr, dep_arr, active_arr = contract.functions.getPodsBatch(from_id, count).call()
+        print(f"Pods (total {len(ids)}):")
+        for i in range(len(ids)):
+            act = "active" if active_arr[i] else "inactive"
+            cap_rem = cap_arr[i] - dep_arr[i] if dep_arr[i] < cap_arr[i] else 0
+            print(f"  Pod #{ids[i]}  lock={format_seconds(lock_arr[i])}  rate={format_bps(rate_arr[i])}  cap={format_wei(cap_arr[i])}  deposited={format_wei(dep_arr[i])}  remaining={format_wei(cap_rem)}  [{act}]")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: user-deposits
+# -----------------------------------------------------------------------------
+
+def cmd_user_deposits(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    if not contract_addr or not address:
+        print("Error: --contract and --address required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        pod_id_arg = getattr(args, "pod_id", None)
+        if pod_id_arg is not None:
+            pod_ids = [int(pod_id_arg)]
+            validate_pod_id(pod_ids[0])
+        else:
+            pod_ids = list(contract.functions.getPodsWhereUserHasDeposits(address).call())
+        if not pod_ids:
+            print("No deposits for this address.")
+            return 0
+        for pid in pod_ids:
+            n = contract.functions.getUserDepositCount(pid, address).call()
+            total_principal, total_reward, _ = contract.functions.getDepositSummaryForUser(pid, address).call()
+            print(f"Pod #{pid}: {n} deposit(s), total principal={format_wei(total_principal)}, claimable reward={format_wei(total_reward)}")
+            for idx in range(n):
+                principal, unlock_at, accrued, rate_bps = contract.functions.getUserDeposit(pid, address, idx).call()
+                if principal == 0:
+                    continue
+                reward_now = contract.functions.getRewardForDeposit(pid, address, idx).call()
+                from datetime import datetime
+                unlock_str = datetime.utcfromtimestamp(unlock_at).isoformat() + "Z" if unlock_at else "—"
+                print(f"    [#{idx}] principal={format_wei(principal)}  unlock={unlock_str}  rate={format_bps(rate_bps)}  claimable_reward={format_wei(reward_now)}")
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: protocol-stats
+# -----------------------------------------------------------------------------
+
+def cmd_protocol_stats(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        total_fees, total_dep, total_wd, total_reward, reserved, pod_count, paused = contract.functions.getProtocolStats().call()
+        print("Protocol stats:")
+        print(f"  Total fees harvested:  {format_wei(total_fees)}")
+        print(f"  Total deposited:      {format_wei(total_dep)}")
